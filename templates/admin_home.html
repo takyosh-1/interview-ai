@@ -97,12 +97,15 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         
         try {
-            const response = await fetch('/create-employee-url', {
+            // Get the current origin without credentials for the fetch request
+            const baseUrl = window.location.protocol + '//' + window.location.host;
+            const response = await fetch(baseUrl + '/create-employee-url', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(data)
+                body: JSON.stringify(data),
+                credentials: 'include'
             });
             
             const result = await response.json();
@@ -140,9 +143,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // 統計データ更新
     async function updateStats() {
         try {
+            // Get the current origin without credentials for the fetch requests
+            const baseUrl = window.location.protocol + '//' + window.location.host;
             const [dataResponse, employeesResponse] = await Promise.all([
-                fetch('/data'),
-                fetch('/employees')
+                fetch(baseUrl + '/data', { credentials: 'include' }),
+                fetch(baseUrl + '/employees', { credentials: 'include' })
             ]);
             
             const data = await dataResponse.json();
