@@ -1,0 +1,172 @@
+{% extends "layout.html" %}
+
+{% block title %}管理者ホーム - 従業員フィードバックシステム{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="admin-header">
+        <h1>管理者ダッシュボード</h1>
+        <p class="admin-subtitle">従業員専用URLの生成とフィードバック管理</p>
+    </div>
+    
+    <div class="admin-sections">
+        <!-- URL生成セクション -->
+        <div class="admin-card">
+            <div class="card-header">
+                <h2>従業員専用URL生成</h2>
+                <p>従業員の名前と部署を入力して、専用のフィードバックURLを生成します</p>
+            </div>
+            
+            <form id="createEmployeeForm" class="employee-form">
+                <div class="form-group">
+                    <label for="employeeName">従業員名</label>
+                    <input type="text" id="employeeName" name="name" placeholder="例: 田中太郎" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="department">部署</label>
+                    <select id="department" name="department" required>
+                        <option value="">部署を選択してください</option>
+                        <option value="営業">営業</option>
+                        <option value="企画">企画</option>
+                        <option value="マーケティング">マーケティング</option>
+                        <option value="開発">開発</option>
+                        <option value="人事">人事</option>
+                        <option value="経理">経理</option>
+                        <option value="総務">総務</option>
+                        <option value="その他">その他</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">専用URL生成</button>
+            </form>
+            
+            <div id="urlResult" class="url-result" style="display: none;">
+                <h3>生成されたURL</h3>
+                <div class="url-display">
+                    <input type="text" id="generatedUrl" readonly>
+                    <button id="copyUrl" class="btn btn-secondary">コピー</button>
+                </div>
+                <p class="url-note">このURLを従業員に共有してください。従業員はこのURLからフィードバックを送信できます。</p>
+            </div>
+        </div>
+        
+        <!-- フィードバック管理セクション -->
+        <div class="admin-card">
+            <div class="card-header">
+                <h2>フィードバック管理</h2>
+                <div class="dashboard-actions">
+                    <a href="/dashboard" class="btn btn-outline">ダッシュボードを表示</a>
+                    <button id="refreshData" class="btn btn-outline">データ更新</button>
+                </div>
+            </div>
+            
+            <div class="quick-stats">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalEmployees">0</div>
+                    <div class="stat-label">登録従業員数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalFeedback">0</div>
+                    <div class="stat-label">総フィードバック数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="todayFeedback">0</div>
+                    <div class="stat-label">今日のフィードバック</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('createEmployeeForm');
+    const urlResult = document.getElementById('urlResult');
+    const generatedUrl = document.getElementById('generatedUrl');
+    const copyBtn = document.getElementById('copyUrl');
+    
+    // URL生成フォーム送信
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(form);
+        const data = {
+            name: formData.get('name'),
+            department: formData.get('department')
+        };
+        
+        try {
+            const response = await fetch('/create-employee-url', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                generatedUrl.value = result.employee_url;
+                urlResult.style.display = 'block';
+                
+                // Show port information
+                const portInfo = document.createElement('p');
+                portInfo.className = 'port-info';
+                portInfo.innerHTML = `<strong>専用ポート番号:</strong> ${result.port}`;
+                urlResult.appendChild(portInfo);
+                
+                form.reset();
+                updateStats();
+            } else {
+                alert('エラー: ' + result.error);
+            }
+        } catch (error) {
+            alert('エラーが発生しました: ' + error.message);
+        }
+    });
+    
+    // URLコピー機能
+    copyBtn.addEventListener('click', function() {
+        generatedUrl.select();
+        document.execCommand('copy');
+        copyBtn.textContent = 'コピー完了!';
+        setTimeout(() => {
+            copyBtn.textContent = 'コピー';
+        }, 2000);
+    });
+    
+    // 統計データ更新
+    async function updateStats() {
+        try {
+            const [dataResponse, employeesResponse] = await Promise.all([
+                fetch('/data'),
+                fetch('/employees')
+            ]);
+            
+            const data = await dataResponse.json();
+            const employees = await employeesResponse.json();
+            
+            document.getElementById('totalEmployees').textContent = employees.length;
+            document.getElementById('totalFeedback').textContent = data.analytics.total_feedback || 0;
+            
+            // 今日のフィードバック数を計算
+            const today = new Date().toISOString().split('T')[0];
+            const todayCount = (data.feedback || []).filter(f => 
+                f.timestamp && f.timestamp.startsWith(today)
+            ).length;
+            document.getElementById('todayFeedback').textContent = todayCount;
+        } catch (error) {
+            console.error('統計データの取得に失敗しました:', error);
+        }
+    }
+    
+    // データ更新ボタン
+    document.getElementById('refreshData').addEventListener('click', updateStats);
+    
+    // 初期データ読み込み
+    updateStats();
+});
+</script>
+{% endblock %}

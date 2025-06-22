@@ -1,4 +1,4 @@
-{% extends "layout.html" %}
+{% extends "employee_layout.html" %}
 
 {% block title %}従業員チャット - 従業員フィードバックシステム{% endblock %}
 
@@ -75,7 +75,7 @@ async function sendMessage() {
     loadingIndicator.style.display = 'flex';
     
     try {
-        const response = await fetch('/employee/chat', {
+        const response = await fetch('/chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

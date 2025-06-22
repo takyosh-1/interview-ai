@@ -39,8 +39,16 @@
             </div>
         </div>
         
+        <div class="summary-section">
+            <h3>AI生成 全体傾向サマリー</h3>
+            <div id="ai-summary" class="ai-summary">
+                <div class="loading-summary">サマリーを生成中...</div>
+            </div>
+            <button id="refresh-summary" class="btn btn-secondary">サマリー更新</button>
+        </div>
+        
         <div class="feedback-section">
-            <h3>最新のフィードバック</h3>
+            <h3>個別従業員フィードバック</h3>
             <div id="feedback-list" class="feedback-list">
                 <div class="no-data">フィードバックがありません</div>
             </div>
@@ -65,7 +73,7 @@ let currentData = null;
 async function loadAdminData() {
     try {
         const department = document.getElementById('department-filter').value;
-        const response = await fetch(`/admin/data?department=${department}`);
+        const response = await fetch(`/data?department=${department}`);
         const data = await response.json();
         
         currentData = data;
@@ -156,7 +164,7 @@ function updateDepartmentFilter(departments) {
 
 async function showFeedbackDetail(feedbackId) {
     try {
-        const response = await fetch(`/admin/feedback/${feedbackId}`);
+        const response = await fetch(`/feedback/${feedbackId}`);
         const feedback = await response.json();
         
         const modalBody = document.getElementById('modal-body');
@@ -190,8 +198,31 @@ async function showFeedbackDetail(feedbackId) {
     }
 }
 
+async function loadAISummary() {
+    try {
+        const summaryContainer = document.getElementById('ai-summary');
+        summaryContainer.innerHTML = '<div class="loading-summary">サマリーを生成中...</div>';
+        
+        const response = await fetch('/summary');
+        const data = await response.json();
+        
+        summaryContainer.innerHTML = `
+            <div class="summary-content">
+                <div class="summary-text">${data.summary}</div>
+                <div class="summary-timestamp">生成日時: ${new Date().toLocaleString('ja-JP')}</div>
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error('サマリーの読み込みに失敗しました:', error);
+        document.getElementById('ai-summary').innerHTML = 
+            '<div class="summary-error">サマリーの生成に失敗しました。もう一度お試しください。</div>';
+    }
+}
+
 document.getElementById('department-filter').addEventListener('change', loadAdminData);
 document.getElementById('refresh-data').addEventListener('click', loadAdminData);
+document.getElementById('refresh-summary').addEventListener('click', loadAISummary);
 
 document.querySelector('.modal-close').addEventListener('click', function() {
     document.getElementById('feedback-modal').style.display = 'none';
@@ -204,6 +235,7 @@ document.getElementById('feedback-modal').addEventListener('click', function(e) 
 });
 
 loadAdminData();
+loadAISummary();
 setInterval(loadAdminData, 30000);
 </script>
 {% endblock %}

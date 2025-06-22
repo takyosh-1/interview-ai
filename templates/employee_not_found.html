@@ -1,0 +1,94 @@
+{% extends "layout.html" %}
+
+{% block title %}従業員が見つかりません - 従業員フィードバックシステム{% endblock %}
+
+{% block content %}
+<div class="error-container">
+    <div class="error-content">
+        <div class="error-icon">❌</div>
+        <h1>アクセスエラー</h1>
+        <p class="error-message">指定された従業員URLが見つかりません。</p>
+        
+        <div class="error-details">
+            <h3>考えられる原因：</h3>
+            <ul>
+                <li>URLが正しく入力されていない</li>
+                <li>管理者によってまだURLが生成されていない</li>
+                <li>URLの有効期限が切れている</li>
+            </ul>
+        </div>
+        
+        <div class="error-actions">
+            <p>管理者に正しいURLを確認してください。</p>
+            <a href="mailto:admin@company.com" class="btn btn-primary">管理者に連絡</a>
+        </div>
+    </div>
+</div>
+
+<style>
+.error-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 60vh;
+    padding: 2rem;
+}
+
+.error-content {
+    text-align: center;
+    max-width: 500px;
+    padding: 2rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.error-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+}
+
+.error-content h1 {
+    color: #dc2626;
+    margin-bottom: 1rem;
+}
+
+.error-message {
+    font-size: 1.1rem;
+    color: #6b7280;
+    margin-bottom: 2rem;
+}
+
+.error-details {
+    text-align: left;
+    margin-bottom: 2rem;
+    padding: 1rem;
+    background: #f9fafb;
+    border-radius: 8px;
+}
+
+.error-details h3 {
+    margin-bottom: 0.5rem;
+    color: #374151;
+}
+
+.error-details ul {
+    margin: 0;
+    padding-left: 1.5rem;
+}
+
+.error-details li {
+    margin-bottom: 0.5rem;
+    color: #6b7280;
+}
+
+.error-actions {
+    margin-top: 2rem;
+}
+
+.error-actions p {
+    margin-bottom: 1rem;
+    color: #6b7280;
+}
+</style>
+{% endblock %}
