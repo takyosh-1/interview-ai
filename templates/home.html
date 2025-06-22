@@ -1,0 +1,46 @@
+{% extends "layout.html" %}
+
+{% block title %}ホーム - 従業員フィードバックシステム{% endblock %}
+
+{% block content %}
+<div class="home-container">
+    <div class="hero-section">
+        <h1>従業員フィードバックシステム</h1>
+        <p class="hero-subtitle">AIチャットボットを通じて従業員の声を収集・可視化</p>
+        
+        <div class="feature-cards">
+            <div class="feature-card">
+                <div class="feature-icon">💬</div>
+                <h3>従業員インターフェース</h3>
+                <p>AIチャットボットと対話して、日々の業務状況や改善提案を報告できます</p>
+                <a href="{{ url_for('employee_interface') }}" class="btn btn-primary">従業員として参加</a>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h3>管理者ダッシュボード</h3>
+                <p>従業員からのフィードバックを一覧表示し、傾向分析を確認できます</p>
+                <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">管理者ダッシュボード</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="info-section">
+        <h2>システムについて</h2>
+        <div class="info-grid">
+            <div class="info-item">
+                <h4>🔒 プライバシー保護</h4>
+                <p>セッション管理により個人情報を適切に保護</p>
+            </div>
+            <div class="info-item">
+                <h4>🤖 AI対話</h4>
+                <p>自然な会話でストレスなく意見を共有</p>
+            </div>
+            <div class="info-item">
+                <h4>📈 リアルタイム分析</h4>
+                <p>管理者は即座に従業員の声を確認可能</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

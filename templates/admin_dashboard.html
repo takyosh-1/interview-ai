@@ -1,0 +1,209 @@
+{% extends "layout.html" %}
+
+{% block title %}管理者ダッシュボード - 従業員フィードバックシステム{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="admin-header">
+        <h2>管理者ダッシュボード</h2>
+        <div class="admin-controls">
+            <select id="department-filter" class="filter-select">
+                <option value="all">全部署</option>
+            </select>
+            <button id="refresh-data" class="btn btn-secondary">更新</button>
+        </div>
+    </div>
+    
+    <div class="admin-content">
+        <div class="analytics-section">
+            <div class="analytics-cards">
+                <div class="analytics-card">
+                    <h3>総フィードバック数</h3>
+                    <div class="analytics-value" id="total-feedback">0</div>
+                </div>
+                <div class="analytics-card">
+                    <h3>アクティブ部署数</h3>
+                    <div class="analytics-value" id="active-departments">0</div>
+                </div>
+                <div class="analytics-card">
+                    <h3>今日の投稿</h3>
+                    <div class="analytics-value" id="today-posts">0</div>
+                </div>
+            </div>
+            
+            <div class="department-breakdown">
+                <h3>部署別フィードバック数</h3>
+                <div id="department-chart" class="chart-container">
+                    <div class="no-data">データがありません</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="feedback-section">
+            <h3>最新のフィードバック</h3>
+            <div id="feedback-list" class="feedback-list">
+                <div class="no-data">フィードバックがありません</div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="feedback-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>フィードバック詳細</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body">
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentData = null;
+
+async function loadAdminData() {
+    try {
+        const department = document.getElementById('department-filter').value;
+        const response = await fetch(`/admin/data?department=${department}`);
+        const data = await response.json();
+        
+        currentData = data;
+        updateAnalytics(data.analytics);
+        updateFeedbackList(data.feedback);
+        updateDepartmentFilter(data.analytics.departments);
+        
+    } catch (error) {
+        console.error('データの読み込みに失敗しました:', error);
+    }
+}
+
+function updateAnalytics(analytics) {
+    document.getElementById('total-feedback').textContent = analytics.total_feedback;
+    document.getElementById('active-departments').textContent = analytics.departments.length;
+    
+    const today = new Date().toISOString().split('T')[0];
+    const todayPosts = analytics.recent_feedback.filter(f => 
+        f.timestamp.startsWith(today)
+    ).length;
+    document.getElementById('today-posts').textContent = todayPosts;
+    
+    updateDepartmentChart(analytics.department_counts);
+}
+
+function updateDepartmentChart(departmentCounts) {
+    const chartContainer = document.getElementById('department-chart');
+    
+    if (Object.keys(departmentCounts).length === 0) {
+        chartContainer.innerHTML = '<div class="no-data">データがありません</div>';
+        return;
+    }
+    
+    const maxCount = Math.max(...Object.values(departmentCounts));
+    
+    chartContainer.innerHTML = Object.entries(departmentCounts)
+        .map(([dept, count]) => {
+            const percentage = maxCount > 0 ? (count / maxCount) * 100 : 0;
+            return `
+                <div class="chart-bar">
+                    <div class="chart-label">${dept}</div>
+                    <div class="chart-bar-container">
+                        <div class="chart-bar-fill" style="width: ${percentage}%"></div>
+                        <span class="chart-value">${count}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+}
+
+function updateFeedbackList(feedback) {
+    const feedbackList = document.getElementById('feedback-list');
+    
+    if (feedback.length === 0) {
+        feedbackList.innerHTML = '<div class="no-data">フィードバックがありません</div>';
+        return;
+    }
+    
+    feedbackList.innerHTML = feedback
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+        .slice(0, 20)
+        .map(f => {
+            const date = new Date(f.timestamp).toLocaleString('ja-JP');
+            return `
+                <div class="feedback-item" onclick="showFeedbackDetail('${f.id}')">
+                    <div class="feedback-header">
+                        <span class="feedback-employee">${f.employee_name}</span>
+                        <span class="feedback-department">${f.department}</span>
+                        <span class="feedback-time">${date}</span>
+                    </div>
+                    <div class="feedback-preview">
+                        ${f.user_message.substring(0, 100)}${f.user_message.length > 100 ? '...' : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+}
+
+function updateDepartmentFilter(departments) {
+    const filter = document.getElementById('department-filter');
+    const currentValue = filter.value;
+    
+    filter.innerHTML = '<option value="all">全部署</option>' +
+        departments.map(dept => `<option value="${dept}">${dept}</option>`).join('');
+    
+    filter.value = currentValue;
+}
+
+async function showFeedbackDetail(feedbackId) {
+    try {
+        const response = await fetch(`/admin/feedback/${feedbackId}`);
+        const feedback = await response.json();
+        
+        const modalBody = document.getElementById('modal-body');
+        const date = new Date(feedback.timestamp).toLocaleString('ja-JP');
+        
+        modalBody.innerHTML = `
+            <div class="feedback-detail">
+                <div class="detail-section">
+                    <h4>従業員情報</h4>
+                    <p><strong>名前:</strong> ${feedback.employee_name}</p>
+                    <p><strong>部署:</strong> ${feedback.department}</p>
+                    <p><strong>投稿日時:</strong> ${date}</p>
+                </div>
+                
+                <div class="detail-section">
+                    <h4>従業員のメッセージ</h4>
+                    <div class="message-content">${feedback.user_message}</div>
+                </div>
+                
+                <div class="detail-section">
+                    <h4>AIの応答</h4>
+                    <div class="message-content">${feedback.ai_response || 'AIの応答がありません'}</div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('feedback-modal').style.display = 'flex';
+        
+    } catch (error) {
+        console.error('フィードバック詳細の読み込みに失敗しました:', error);
+    }
+}
+
+document.getElementById('department-filter').addEventListener('change', loadAdminData);
+document.getElementById('refresh-data').addEventListener('click', loadAdminData);
+
+document.querySelector('.modal-close').addEventListener('click', function() {
+    document.getElementById('feedback-modal').style.display = 'none';
+});
+
+document.getElementById('feedback-modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        this.style.display = 'none';
+    }
+});
+
+loadAdminData();
+setInterval(loadAdminData, 30000);
+</script>
+{% endblock %}

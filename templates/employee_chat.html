@@ -1,0 +1,137 @@
+{% extends "layout.html" %}
+
+{% block title %}従業員チャット - 従業員フィードバックシステム{% endblock %}
+
+{% block extra_style %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="chat-container">
+    <div class="chat-header">
+        <h2>AIチャットボット</h2>
+        <p class="chat-subtitle">お疲れ様です！今日の業務状況や気になることがあれば、お気軽にお話しください。</p>
+    </div>
+    
+    <div class="chat-messages" id="chat-messages">
+        <div class="message ai-message">
+            <div class="message-content">
+                <p>こんにちは！今日はお疲れ様でした。最近の業務状況はいかがですか？何か気になることや改善したいことがあれば、お聞かせください。</p>
+            </div>
+            <div class="message-time">AI</div>
+        </div>
+    </div>
+    
+    <div class="chat-input-container">
+        <div class="chat-input-wrapper">
+            <textarea id="chat-input" placeholder="メッセージを入力してください..." rows="3"></textarea>
+            <button id="send-button" class="btn btn-primary">送信</button>
+        </div>
+    </div>
+    
+    <div id="loading-indicator" class="loading-indicator" style="display: none;">
+        <div class="loading-spinner"></div>
+        <span>AIが回答を生成中...</span>
+    </div>
+</div>
+
+<script>
+const chatMessages = document.getElementById('chat-messages');
+const chatInput = document.getElementById('chat-input');
+const sendButton = document.getElementById('send-button');
+const loadingIndicator = document.getElementById('loading-indicator');
+
+function addMessage(content, isUser = false) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
+    
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'message-content';
+    
+    if (isUser) {
+        contentDiv.textContent = content;
+    } else {
+        contentDiv.innerHTML = marked.parse(content);
+    }
+    
+    const timeDiv = document.createElement('div');
+    timeDiv.className = 'message-time';
+    timeDiv.textContent = isUser ? 'あなた' : 'AI';
+    
+    messageDiv.appendChild(contentDiv);
+    messageDiv.appendChild(timeDiv);
+    chatMessages.appendChild(messageDiv);
+    
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+async function sendMessage() {
+    const message = chatInput.value.trim();
+    if (!message) return;
+    
+    addMessage(message, true);
+    chatInput.value = '';
+    sendButton.disabled = true;
+    loadingIndicator.style.display = 'flex';
+    
+    try {
+        const response = await fetch('/employee/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ message: message })
+        });
+        
+        if (!response.ok) {
+            throw new Error('ネットワークエラー');
+        }
+        
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let aiResponse = '';
+        
+        const aiMessageDiv = document.createElement('div');
+        aiMessageDiv.className = 'message ai-message';
+        
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'message-content';
+        
+        const timeDiv = document.createElement('div');
+        timeDiv.className = 'message-time';
+        timeDiv.textContent = 'AI';
+        
+        aiMessageDiv.appendChild(contentDiv);
+        aiMessageDiv.appendChild(timeDiv);
+        chatMessages.appendChild(aiMessageDiv);
+        
+        loadingIndicator.style.display = 'none';
+        
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            const chunk = decoder.decode(value);
+            aiResponse += chunk;
+            contentDiv.innerHTML = marked.parse(aiResponse);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+    } catch (error) {
+        loadingIndicator.style.display = 'none';
+        addMessage('申し訳ございません。エラーが発生しました。もう一度お試しください。', false);
+    }
+    
+    sendButton.disabled = false;
+}
+
+sendButton.addEventListener('click', sendMessage);
+
+chatInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+});
+</script>
+{% endblock %}
