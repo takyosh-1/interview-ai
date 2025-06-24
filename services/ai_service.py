@@ -1,10 +1,17 @@
+import logging
 from config.settings import client, global_model
 
+logger = logging.getLogger(__name__)
+
 def generate_summary_with_ai(feedback_list):
+    logger.info(f"Generating AI summary for {len(feedback_list)} feedback entries")
+    
     if not feedback_list:
+        logger.info("No feedback data available for summary generation")
         return "フィードバックがまだありません。"
     
     if client is None:
+        logger.warning("AI client not available, returning demo summary")
         return """**全体要約（デモモード）**
 
 現在のフィードバック状況：
@@ -25,6 +32,7 @@ def generate_summary_with_ai(feedback_list):
 *（注：本番環境ではAIが詳細な分析を提供します）*"""
     
     try:
+        logger.info(f"Processing {min(20, len(feedback_list))} most recent feedback entries for AI analysis")
         feedback_text = "\n\n".join([
             f"従業員: {f['employee_name']} ({f['department']})\n"
             f"日時: {f['timestamp']}\n"
@@ -47,6 +55,7 @@ def generate_summary_with_ai(feedback_list):
 
 日本語で、管理者が理解しやすい形式で要約してください。"""
         
+        logger.info(f"Sending summary request to Azure OpenAI using model: {global_model}")
         response = client.chat.completions.create(
             model=global_model,
             messages=[
@@ -57,7 +66,10 @@ def generate_summary_with_ai(feedback_list):
             max_tokens=1000
         )
         
-        return response.choices[0].message.content
+        summary_content = response.choices[0].message.content
+        logger.info(f"Successfully generated AI summary ({len(summary_content)} characters)")
+        return summary_content
         
     except Exception as e:
+        logger.error(f"Error generating AI summary: {e}")
         return f"要約生成中にエラーが発生しました: {str(e)}"

@@ -1,8 +1,20 @@
 import os
+import logging
 from dotenv import load_dotenv
 from openai import AzureOpenAI
 
 load_dotenv()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('/tmp/interview_ai_shared/app.log', encoding='utf-8')
+    ]
+)
+
+logger = logging.getLogger(__name__)
 
 SHARED_DATA_DIR = "/tmp/interview_ai_shared"
 FEEDBACK_DATA_FILE = f"{SHARED_DATA_DIR}/feedback_data.json"
@@ -14,6 +26,7 @@ feedback_data = []
 employee_access_tokens = {}
 
 os.makedirs(SHARED_DATA_DIR, exist_ok=True)
+logger.info(f"Shared data directory initialized: {SHARED_DATA_DIR}")
 
 global_model = "gpt-4o"
 client = None
@@ -25,9 +38,9 @@ try:
             azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
             api_version="2024-12-01-preview",
         )
-        print("Azure OpenAI client initialized successfully")
+        logger.info("Azure OpenAI client initialized successfully")
     else:
-        print("Warning: Azure OpenAI credentials not found. Running in demo mode.")
+        logger.warning("Azure OpenAI credentials not found. Running in demo mode.")
 except Exception as e:
-    print(f"Warning: Failed to initialize Azure OpenAI client: {e}")
-    print("Running in demo mode without AI functionality.")
+    logger.error(f"Failed to initialize Azure OpenAI client: {e}")
+    logger.warning("Running in demo mode without AI functionality.")

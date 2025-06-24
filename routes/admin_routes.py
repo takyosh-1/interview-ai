@@ -1,4 +1,5 @@
 import uuid
+import logging
 from datetime import datetime
 from flask import Blueprint, render_template, request, jsonify
 
@@ -7,6 +8,7 @@ from models.data_manager import load_shared_feedback_data, load_shared_employee_
 from services.employee_server import start_employee_server
 from services.ai_service import generate_summary_with_ai
 
+logger = logging.getLogger(__name__)
 admin_bp = Blueprint('admin', __name__)
 
 @admin_bp.route("/")
@@ -19,7 +21,10 @@ def create_employee_url():
     employee_name = data.get("name", "").strip()
     department = data.get("department", "").strip()
     
+    logger.info(f"Creating employee URL for {employee_name} in {department} department")
+    
     if not employee_name or not department:
+        logger.warning(f"Invalid employee URL creation request: name='{employee_name}', department='{department}'")
         return jsonify({"success": False, "error": "従業員名と部署を入力してください"})
     
     employee_id = str(uuid.uuid4())
@@ -40,6 +45,7 @@ def create_employee_url():
     
     if start_employee_server(employee_id, port):
         employee_url = f"http://localhost:{port}"
+        logger.info(f"Successfully created employee URL for {employee_name}: {employee_url}")
         return jsonify({
             "success": True, 
             "employee_url": employee_url,
@@ -47,10 +53,12 @@ def create_employee_url():
             "employee_id": employee_id
         })
     else:
+        logger.error(f"Failed to start employee server for {employee_name} on port {port}")
         return jsonify({"success": False, "error": "従業員サーバーの起動に失敗しました"})
 
 @admin_bp.route("/employees")
 def list_employees():
+    logger.info("Fetching employee list")
     current_employee_data = load_shared_employee_data()
     
     employees = []
@@ -73,10 +81,11 @@ def admin_dashboard():
 
 @admin_bp.route("/data")
 def admin_data():
-    current_feedback = load_shared_feedback_data()
-    
     department_filter = request.args.get('department', 'all')
     employee_filter = request.args.get('employee', 'all')
+    logger.info(f"Fetching admin data with filters - department: {department_filter}, employee: {employee_filter}")
+    
+    current_feedback = load_shared_feedback_data()
     
     filtered_data = current_feedback
     if department_filter != 'all':
@@ -115,14 +124,19 @@ def admin_data():
 
 @admin_bp.route("/summary")
 def admin_summary():
+    logger.info("Generating admin summary")
     current_feedback = load_shared_feedback_data()
     summary = generate_summary_with_ai(current_feedback)
+    logger.info("Admin summary generated successfully")
     return jsonify({"summary": summary})
 
 @admin_bp.route("/feedback/<feedback_id>")
 def admin_feedback_detail(feedback_id):
+    logger.info(f"Fetching feedback detail for ID: {feedback_id}")
     current_feedback = load_shared_feedback_data()
     feedback = next((f for f in current_feedback if f['id'] == feedback_id), None)
     if not feedback:
+        logger.warning(f"Feedback not found for ID: {feedback_id}")
         return jsonify({"error": "フィードバックが見つかりません"}), 404
+    logger.info(f"Successfully retrieved feedback detail for ID: {feedback_id}")
     return jsonify(feedback)

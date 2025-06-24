@@ -1,6 +1,7 @@
 import uuid
 import time
 import threading
+import logging
 from datetime import datetime
 from flask import Flask, render_template, request, Response, stream_with_context, jsonify
 from werkzeug.serving import make_server
@@ -8,7 +9,10 @@ from werkzeug.serving import make_server
 from config.settings import client, global_model, running_servers, employee_data
 from models.data_manager import load_shared_feedback_data, save_shared_feedback_data
 
+logger = logging.getLogger(__name__)
+
 def create_employee_app(employee_id, employee_name, department):
+    logger.info(f"Creating employee app for {employee_name} ({department}) - ID: {employee_id}")
     employee_app = Flask(f"employee_{employee_id}")
     employee_app.secret_key = f'employee-{employee_id}-secret'
     
@@ -24,7 +28,10 @@ def create_employee_app(employee_id, employee_name, department):
         data = request.get_json()
         user_message = data.get("message", "").strip()
         
+        logger.info(f"Received chat message from {employee_name} ({department}): {len(user_message)} characters")
+        
         if not user_message:
+            logger.warning(f"Empty message received from {employee_name}")
             return jsonify({"error": "メッセージが空です"}), 400
         
         feedback_entry = {
@@ -54,6 +61,7 @@ def create_employee_app(employee_id, employee_name, department):
         def stream():
             try:
                 if client is None:
+                    logger.info(f"Generating demo response for {employee_name} (no AI client available)")
                     demo_response = f"""ありがとうございます、{employee_name}さん。
 
 {user_message}について、お話しいただきありがとうございます。
@@ -71,11 +79,13 @@ def create_employee_app(employee_id, employee_name, department):
                     current_feedback = load_shared_feedback_data()
                     current_feedback.append(feedback_entry)
                     save_shared_feedback_data(current_feedback)
+                    logger.info(f"Saved demo feedback entry for {employee_name}")
                     
                     for char in demo_response:
                         yield char
                         time.sleep(0.02)
                 else:
+                    logger.info(f"Generating AI response for {employee_name} using {global_model}")
                     response = client.chat.completions.create(
                         model=global_model,
                         messages=[
@@ -98,8 +108,10 @@ def create_employee_app(employee_id, employee_name, department):
                     current_feedback = load_shared_feedback_data()
                     current_feedback.append(feedback_entry)
                     save_shared_feedback_data(current_feedback)
+                    logger.info(f"Saved AI feedback entry for {employee_name} ({len(ai_response)} characters)")
                     
             except Exception as e:
+                logger.error(f"Error in chat stream for {employee_name}: {e}")
                 error_message = f"申し訳ございません。エラーが発生しました: {str(e)}"
                 feedback_entry['ai_response'] = error_message
                 current_feedback = load_shared_feedback_data()
@@ -112,7 +124,10 @@ def create_employee_app(employee_id, employee_name, department):
     return employee_app
 
 def start_employee_server(employee_id, port):
+    logger.info(f"Starting employee server for ID: {employee_id} on port {port}")
+    
     if employee_id not in employee_data:
+        logger.error(f"Employee ID {employee_id} not found in employee data")
         return False
     
     employee_info = employee_data[employee_id]
@@ -124,10 +139,10 @@ def start_employee_server(employee_id, port):
         
         def run_server():
             try:
-                print(f"Starting employee server for {employee_info['name']} on port {port}")
+                logger.info(f"Employee server thread started for {employee_info['name']} on port {port}")
                 server.serve_forever()
             except Exception as e:
-                print(f"Error running employee server on port {port}: {e}")
+                logger.error(f"Error running employee server on port {port}: {e}")
         
         server_thread = threading.Thread(target=run_server, daemon=True)
         server_thread.start()
@@ -142,9 +157,9 @@ def start_employee_server(employee_id, port):
             'app': employee_app
         }
         
-        print(f"Employee server started for {employee_info['name']} at http://localhost:{port}")
+        logger.info(f"Employee server successfully started for {employee_info['name']} at http://localhost:{port}")
         return True
         
     except Exception as e:
-        print(f"Error starting server for employee {employee_id} on port {port}: {e}")
+        logger.error(f"Error starting server for employee {employee_id} on port {port}: {e}")
         return False
