@@ -18,62 +18,65 @@ def admin_home():
 @admin_bp.route("/create-employee-url", methods=["POST"])
 def create_employee_url():
     data = request.get_json()
-    employee_name = data.get("name", "").strip()
-    department = data.get("department", "").strip()
+    chatbot_type = data.get("chatbot_type", "").strip()
+    session_name = data.get("session_name", "").strip()
     
-    logger.info(f"Creating employee URL for {employee_name} in {department} department")
+    logger.info(f"Creating chatbot URL for type: {chatbot_type}, session: {session_name}")
     
-    if not employee_name or not department:
-        logger.warning(f"Invalid employee URL creation request: name='{employee_name}', department='{department}'")
-        return jsonify({"success": False, "error": "従業員名と部署を入力してください"})
+    if not chatbot_type:
+        logger.warning(f"Invalid chatbot URL creation request: chatbot_type='{chatbot_type}'")
+        return jsonify({"success": False, "error": "チャットボットの種類を選択してください"})
     
-    employee_id = str(uuid.uuid4())
+    session_id = str(uuid.uuid4())
     base_port = 5001
     port = base_port
     
     while port in [server['port'] for server in running_servers.values()]:
         port += 1
     
-    employee_data[employee_id] = {
-        'name': employee_name,
-        'department': department,
+    display_name = session_name if session_name else f"{chatbot_type}チャットボット"
+    
+    employee_data[session_id] = {
+        'chatbot_type': chatbot_type,
+        'session_name': display_name,
         'created_at': datetime.now().isoformat(),
         'port': port
     }
     
     save_shared_employee_data(employee_data)
     
-    if start_employee_server(employee_id, port):
+    if start_employee_server(session_id, port):
         employee_url = f"http://localhost:{port}"
-        logger.info(f"Successfully created employee URL for {employee_name}: {employee_url}")
+        logger.info(f"Successfully created chatbot URL for {chatbot_type}: {employee_url}")
         return jsonify({
             "success": True, 
             "employee_url": employee_url,
             "port": port,
-            "employee_id": employee_id
+            "session_id": session_id,
+            "chatbot_type": chatbot_type
         })
     else:
-        logger.error(f"Failed to start employee server for {employee_name} on port {port}")
-        return jsonify({"success": False, "error": "従業員サーバーの起動に失敗しました"})
+        logger.error(f"Failed to start chatbot server for {chatbot_type} on port {port}")
+        return jsonify({"success": False, "error": "チャットボットサーバーの起動に失敗しました"})
 
 @admin_bp.route("/employees")
 def list_employees():
-    logger.info("Fetching employee list")
+    logger.info("Fetching chatbot session list")
     current_employee_data = load_shared_employee_data()
     
-    employees = []
-    for emp_id, emp_data in current_employee_data.items():
-        server_info = running_servers.get(emp_id, {})
-        employees.append({
-            'id': emp_id,
-            'name': emp_data['name'],
-            'department': emp_data['department'],
-            'created_at': emp_data['created_at'],
-            'port': emp_data.get('port'),
+    sessions = []
+    for session_id, session_data in current_employee_data.items():
+        server_info = running_servers.get(session_id, {})
+        sessions.append({
+            'id': session_id,
+            'chatbot_type': session_data.get('chatbot_type', '不明'),
+            'session_name': session_data.get('session_name', '不明'),
+            'created_at': session_data['created_at'],
+            'port': session_data.get('port'),
             'url': server_info.get('url'),
-            'status': 'running' if emp_id in running_servers else 'stopped'
+            'status': 'running' if session_id in running_servers else 'stopped'
         })
-    return jsonify(employees)
+    return jsonify(sessions)
 
 @admin_bp.route("/dashboard")
 def admin_dashboard():
@@ -81,41 +84,44 @@ def admin_dashboard():
 
 @admin_bp.route("/data")
 def admin_data():
-    department_filter = request.args.get('department', 'all')
-    employee_filter = request.args.get('employee', 'all')
-    logger.info(f"Fetching admin data with filters - department: {department_filter}, employee: {employee_filter}")
+    chatbot_filter = request.args.get('chatbot_type', 'all')
+    session_filter = request.args.get('session', 'all')
+    logger.info(f"Fetching admin data with filters - chatbot_type: {chatbot_filter}, session: {session_filter}")
     
     current_feedback = load_shared_feedback_data()
     
     filtered_data = current_feedback
-    if department_filter != 'all':
-        filtered_data = [f for f in filtered_data if f['department'] == department_filter]
-    if employee_filter != 'all':
-        filtered_data = [f for f in filtered_data if f['employee_id'] == employee_filter]
+    if chatbot_filter != 'all':
+        filtered_data = [f for f in filtered_data if f.get('chatbot_type') == chatbot_filter]
+    if session_filter != 'all':
+        filtered_data = [f for f in filtered_data if f.get('session_id') == session_filter]
     
-    departments = list(set([f['department'] for f in current_feedback]))
+    chatbot_types = list(set([f.get('chatbot_type', '不明') for f in current_feedback]))
     
-    unique_employees = {}
+    unique_sessions = {}
     for f in current_feedback:
-        emp_id = f['employee_id']
-        if emp_id not in unique_employees:
-            unique_employees[emp_id] = {'id': emp_id, 'name': f['employee_name']}
-    employees = list(unique_employees.values())
+        session_id = f.get('session_id')
+        if session_id and session_id not in unique_sessions:
+            unique_sessions[session_id] = {
+                'id': session_id, 
+                'name': f.get('session_name', f.get('chatbot_type', '不明'))
+            }
+    sessions = list(unique_sessions.values())
     
     analytics = {
         'total_feedback': len(filtered_data),
-        'departments': departments,
-        'employees': employees,
+        'chatbot_types': chatbot_types,
+        'sessions': sessions,
         'recent_feedback': sorted(filtered_data, key=lambda x: x['timestamp'], reverse=True)[:10],
-        'department_counts': {},
-        'employee_counts': {}
+        'chatbot_counts': {},
+        'session_counts': {}
     }
     
-    for dept in departments:
-        analytics['department_counts'][dept] = len([f for f in current_feedback if f['department'] == dept])
+    for chatbot_type in chatbot_types:
+        analytics['chatbot_counts'][chatbot_type] = len([f for f in current_feedback if f.get('chatbot_type') == chatbot_type])
     
-    for emp in employees:
-        analytics['employee_counts'][emp['id']] = len([f for f in current_feedback if f['employee_id'] == emp['id']])
+    for session in sessions:
+        analytics['session_counts'][session['id']] = len([f for f in current_feedback if f.get('session_id') == session['id']])
     
     return jsonify({
         'feedback': filtered_data,
