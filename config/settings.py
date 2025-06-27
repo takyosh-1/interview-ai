@@ -31,8 +31,12 @@ logger.info(f"Shared data directory initialized: {SHARED_DATA_DIR}")
 global_model = "gpt-4o"
 client = None
 
+logger.info(f"AZURE openai endpoint: {os.getenv('AZURE_OPENAI_ENDPOINT')}")
+logger.info(f"AZURE openai key: {os.getenv('AZURE_OPENAI_KEY')}")
+
 try:
     if os.getenv("AZURE_OPENAI_KEY") and os.getenv("AZURE_OPENAI_ENDPOINT"):
+        logger.info("Initializing Azure OpenAI client...")
         client = AzureOpenAI(
             api_key=os.getenv("AZURE_OPENAI_KEY"),
             azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),

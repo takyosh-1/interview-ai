@@ -44,19 +44,36 @@ def create_employee_app(employee_id, employee_name, department):
             'ai_response': ''
         }
         
-        system_prompt = f"""あなたは従業員フィードバック収集のための親しみやすいAIアシスタントです。
-従業員名: {employee_name}
-部署: {department}
+        system_prompt = f"""あなたは、社員の声を聴き、会社の改善に活かすための「AI面談アシスタント」です。  
+        この面談は匿名で行われ、社員が安心して本音を話せる場であることを大切にしてください。  
+        目的は、社員の【感情面】と【業務面】の現状と課題を把握し、改善のヒントを集めることです。
 
-以下の役割を果たしてください：
-1. 従業員の話を親身に聞き、共感を示す
-2. 業務上の課題や改善提案を自然に引き出す
-3. ストレスや不満がある場合は、具体的な状況を聞く
-4. 建設的な解決策を一緒に考える
-5. 必要に応じて、管理者に伝えるべき重要な情報を整理する
+        以下の3つの質問を、順番に丁寧に聞いてください。  
+        共感的でやさしい口調で、話しやすい雰囲気をつくってください。  
+        回答があいまいな場合は、「たとえばどんなとき？」「具体的に言うとどういうことですか？」とやさしく深掘りしてください。
 
-共感的で親しみやすい口調で、従業員が話しやすい雰囲気を作ってください。
-一度に多くの質問をせず、相手の話を聞いてから適切な質問や共感を示してください。"""
+        ---
+
+        ■ 質問①（感情面）：  
+        最近の仕事について、どんな気持ちになることが多いですか？  
+        （例：「やりがいが減った」「やる気が出ない」「前より落ち着いている」など）
+
+        ---
+
+        ■ 質問②（業務面）：  
+        合併後の働き方やルールで、「やりづらい」「困っている」と感じることはありますか？  
+        具体的な作業や変化を教えてください。
+
+        ---
+
+        ■ 質問③（改善希望）：  
+        今の職場がもっと働きやすくなるために、「こうなったら嬉しい」と思うことはありますか？
+
+        ---
+
+        最後にこう伝えてください：  
+        「今日は話してくださってありがとうございました。内容は整理して会社の改善に活かします。すべて匿名で扱われますので、安心してください。」
+        """
 
         def stream():
             try:
@@ -64,16 +81,16 @@ def create_employee_app(employee_id, employee_name, department):
                     logger.info(f"Generating demo response for {employee_name} (no AI client available)")
                     demo_response = f"""ありがとうございます、{employee_name}さん。
 
-{user_message}について、お話しいただきありがとうございます。
+                    {user_message}について、お話しいただきありがとうございます。
 
-現在はデモモードで動作しているため、実際のAI応答は提供できませんが、本番環境では以下のような機能を提供します：
+                    現在はデモモードで動作しているため、実際のAI応答は提供できませんが、本番環境では以下のような機能を提供します：
 
-• あなたの状況に応じた個別のアドバイス
-• 業務改善のための具体的な提案
-• ストレス軽減のためのサポート
-• 管理者への建設的なフィードバック整理
+                    • あなたの状況に応じた個別のアドバイス
+                    • 業務改善のための具体的な提案
+                    • ストレス軽減のためのサポート
+                    • 管理者への建設的なフィードバック整理
 
-何か他にお聞かせいただきたいことがあれば、お気軽にお話しください。"""
+                    何か他にお聞かせいただきたいことがあれば、お気軽にお話しください。"""
                     
                     feedback_entry['ai_response'] = demo_response
                     current_feedback = load_shared_feedback_data()
@@ -92,17 +109,15 @@ def create_employee_app(employee_id, employee_name, department):
                             {"role": "system", "content": system_prompt},
                             {"role": "user", "content": user_message}
                         ],
-                        stream=True,
-                        temperature=0.7,
-                        max_tokens=500
+                        stream=True
                     )
                     
                     ai_response = ""
                     for chunk in response:
-                        if chunk.choices[0].delta.content:
+                        if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
                             content = chunk.choices[0].delta.content
                             ai_response += content
-                            yield content
+                            yield content 
                     
                     feedback_entry['ai_response'] = ai_response
                     current_feedback = load_shared_feedback_data()
