@@ -9,22 +9,21 @@
 {% block content %}
 <div class="chat-container">
     <div class="chat-header">
-        <h2>AIチャットボット</h2>
-        <p class="chat-subtitle">お疲れ様です！今日の業務状況や気になることがあれば、お気軽にお話しください。</p>
+        <h1>{{ session_name }}</h1>
+        <p class="chat-subtitle">{{ chatbot_type }}に関するご相談をお聞かせください</p>
     </div>
     
     <div class="chat-messages" id="chat-messages">
         <div class="message ai-message">
             <div class="message-content">
-                <p>こんにちは。私は、会社の改善のために社員の声を聴くAIアシスタントです。
+                <p>こんにちは。私は{{ chatbot_type }}に関する相談を専門とするAIアシスタントです。
 この会話は匿名で行われ、あなたのお名前や個人情報は記録されません。
-今日は、あなたの日々の感情や業務について感じていることを、素直に聞かせていただければ嬉しいです。
+{{ chatbot_type }}について感じていることを、素直に聞かせていただければ嬉しいです。
 
-質問①：最近、仕事をしていてどんな気持ちになることが多いですか？
-たとえば「やる気が出ない」「以前より楽しくない」「忙しくて疲れている」「少し前向きになってきた」など、どんなことでも構いません。
+どのようなことでお困りですか？お気軽にお話しください。
                 </p>
             </div>
-            <div class="message-time">AI</div>
+            <div class="message-time">{{ chatbot_type }}AI</div>
         </div>
     </div>
     
@@ -62,7 +61,7 @@ function addMessage(content, isUser = false) {
     
     const timeDiv = document.createElement('div');
     timeDiv.className = 'message-time';
-    timeDiv.textContent = isUser ? 'あなた' : 'AI';
+    timeDiv.textContent = isUser ? 'あなた' : '{{ chatbot_type }}AI';
     
     messageDiv.appendChild(contentDiv);
     messageDiv.appendChild(timeDiv);
@@ -105,7 +104,7 @@ async function sendMessage() {
         
         const timeDiv = document.createElement('div');
         timeDiv.className = 'message-time';
-        timeDiv.textContent = 'AI';
+        timeDiv.textContent = '{{ chatbot_type }}AI';
         
         aiMessageDiv.appendChild(contentDiv);
         aiMessageDiv.appendChild(timeDiv);

@@ -13,29 +13,25 @@
         <!-- URL生成セクション -->
         <div class="admin-card">
             <div class="card-header">
-                <h2>従業員専用URL生成</h2>
-                <p>従業員の名前と部署を入力して、専用のフィードバックURLを生成します</p>
+                <h2>チャットボット専用URL生成</h2>
+                <p>チャットボットの種類を選択して、専用のフィードバックURLを生成します</p>
             </div>
             
             <form id="createEmployeeForm" class="employee-form">
                 <div class="form-group">
-                    <label for="employeeName">従業員名</label>
-                    <input type="text" id="employeeName" name="name" placeholder="例: 田中太郎" required>
+                    <label for="chatbotType">チャットボットの種類</label>
+                    <select id="chatbotType" name="chatbot_type" required>
+                        <option value="">チャットボットの種類を選択してください</option>
+                        <option value="業務">業務について聞くチャットボット</option>
+                        <option value="人間関係">人間関係について聞くチャットボット</option>
+                        <option value="会社の方向性">会社の方向性について聞くチャットボット</option>
+                        <option value="キャリア">キャリアについて聞くチャットボット</option>
+                    </select>
                 </div>
                 
                 <div class="form-group">
-                    <label for="department">部署</label>
-                    <select id="department" name="department" required>
-                        <option value="">部署を選択してください</option>
-                        <option value="営業">営業</option>
-                        <option value="企画">企画</option>
-                        <option value="マーケティング">マーケティング</option>
-                        <option value="開発">開発</option>
-                        <option value="人事">人事</option>
-                        <option value="経理">経理</option>
-                        <option value="総務">総務</option>
-                        <option value="その他">その他</option>
-                    </select>
+                    <label for="sessionName">セッション名（任意）</label>
+                    <input type="text" id="sessionName" name="session_name" placeholder="例: 営業部向け業務相談">
                 </div>
                 
                 <button type="submit" class="btn btn-primary">専用URL生成</button>
@@ -92,8 +88,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const formData = new FormData(form);
         const data = {
-            name: formData.get('name'),
-            department: formData.get('department')
+            chatbot_type: formData.get('chatbot_type'),
+            session_name: formData.get('session_name')
         };
         
         try {
