@@ -5,6 +5,13 @@ from openai import AzureOpenAI
 
 load_dotenv()
 
+SHARED_DATA_DIR = "/tmp/interview_ai_shared"
+FEEDBACK_DATA_FILE = f"{SHARED_DATA_DIR}/feedback_data.json"
+EMPLOYEE_DATA_FILE = f"{SHARED_DATA_DIR}/employee_data.json"
+CONVERSATION_DATA_FILE = f"{SHARED_DATA_DIR}/conversation_data.json"
+
+os.makedirs(SHARED_DATA_DIR, exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -16,16 +23,11 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-SHARED_DATA_DIR = "/tmp/interview_ai_shared"
-FEEDBACK_DATA_FILE = f"{SHARED_DATA_DIR}/feedback_data.json"
-EMPLOYEE_DATA_FILE = f"{SHARED_DATA_DIR}/employee_data.json"
-
 employee_data = {}
 running_servers = {}
 feedback_data = []
 employee_access_tokens = {}
 
-os.makedirs(SHARED_DATA_DIR, exist_ok=True)
 logger.info(f"Shared data directory initialized: {SHARED_DATA_DIR}")
 
 global_model = "gpt-4o"
