@@ -10,18 +10,21 @@
 <div class="chat-container">
     <div class="chat-header">
         <h1>{{ session_name }}</h1>
-        <p class="chat-subtitle">{{ chatbot_type }}に関するご相談をお聞かせください</p>
     </div>
     
     <div class="chat-messages" id="chat-messages">
         <div class="message ai-message">
             <div class="message-content">
+                {% if initial_message %}
+                <p>{{ initial_message }}</p>
+                {% else %}
                 <p>こんにちは。私は{{ chatbot_type }}に関する相談を専門とするAIアシスタントです。
 この会話は匿名で行われ、あなたのお名前や個人情報は記録されません。
 {{ chatbot_type }}について感じていることを、素直に聞かせていただければ嬉しいです。
 
 どのようなことでお困りですか？お気軽にお話しください。
                 </p>
+                {% endif %}
             </div>
             <div class="message-time">{{ chatbot_type }}AI</div>
         </div>

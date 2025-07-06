@@ -1,0 +1,121 @@
+{% extends "layout.html" %}
+
+{% block title %}従業員情報登録 - 従業員フィードバックシステム{% endblock %}
+
+{% block content %}
+<div class="registration-container">
+    <div class="registration-header">
+        <h1>従業員情報登録</h1>
+        <p>従業員の基本情報を登録してください</p>
+    </div>
+    
+    <div class="registration-card">
+        <form id="employeeRegistrationForm" class="registration-form">
+            <div class="form-group">
+                <label for="employeeName">名前</label>
+                <input type="text" id="employeeName" name="employee_name" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="department">所属部署</label>
+                <input type="text" id="department" name="department" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="age">年齢</label>
+                <input type="number" id="age" name="age" min="18" max="100" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="jobDescription">業務内容</label>
+                <textarea id="jobDescription" name="job_description" rows="4" required></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="recentConcerns">最近の困りごと</label>
+                <textarea id="recentConcerns" name="recent_concerns" rows="4"></textarea>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">登録</button>
+        </form>
+    </div>
+    
+    <div class="employee-list">
+        <h3>登録済み従業員一覧</h3>
+        <div id="employeeList" class="list-container">
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('employeeRegistrationForm');
+    const employeeList = document.getElementById('employeeList');
+    
+    async function loadEmployees() {
+        try {
+            const response = await fetch('/api/employee-profiles');
+            const employees = await response.json();
+            
+            employeeList.innerHTML = '';
+            
+            if (employees.length === 0) {
+                employeeList.innerHTML = '<p>登録された従業員がありません</p>';
+                return;
+            }
+            
+            employees.forEach(employee => {
+                const item = document.createElement('div');
+                item.className = 'employee-item';
+                item.innerHTML = `
+                    <h4>${employee.name}</h4>
+                    <p><strong>部署:</strong> ${employee.department}</p>
+                    <p><strong>年齢:</strong> ${employee.age}歳</p>
+                    <p><strong>業務:</strong> ${employee.job_description}</p>
+                    ${employee.recent_concerns ? `<p><strong>困りごと:</strong> ${employee.recent_concerns}</p>` : ''}
+                `;
+                employeeList.appendChild(item);
+            });
+        } catch (error) {
+            console.error('従業員データの読み込みに失敗しました:', error);
+            employeeList.innerHTML = '<p>データの読み込みに失敗しました</p>';
+        }
+    }
+    
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(form);
+        const data = {
+            employee_name: formData.get('employee_name'),
+            department: formData.get('department'),
+            age: parseInt(formData.get('age')),
+            job_description: formData.get('job_description'),
+            recent_concerns: formData.get('recent_concerns')
+        };
+        
+        try {
+            const response = await fetch('/api/employee-profiles', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                form.reset();
+                await loadEmployees();
+                alert('従業員情報を登録しました');
+            } else {
+                alert('エラー: ' + result.error);
+            }
+        } catch (error) {
+            alert('エラーが発生しました: ' + error.message);
+        }
+    });
+    
+    loadEmployees();
+});
+</script>
+{% endblock %}

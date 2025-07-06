@@ -3,8 +3,16 @@ from config.settings import client, global_model
 
 logger = logging.getLogger(__name__)
 
-def get_chatbot_system_prompt(chatbot_type):
-    logger.info(f"Generating system prompt for chatbot type: {chatbot_type}")
+def get_chatbot_system_prompt(chatbot_type, chatbot_id=None):
+    logger.info(f"Generating system prompt for chatbot type: {chatbot_type}, ID: {chatbot_id}")
+    
+    if chatbot_id and chatbot_id.startswith("custom:"):
+        custom_id = chatbot_id.replace("custom:", "")
+        from models.data_manager import load_custom_chatbot_data
+        custom_chatbots = load_custom_chatbot_data()
+        if custom_id in custom_chatbots:
+            logger.info(f"Using custom system prompt for chatbot: {custom_chatbots[custom_id]['name']}")
+            return custom_chatbots[custom_id]['system_prompt']
     
     base_prompt = """あなたは、社員の声を聴き、会社の改善に活かすための「AI面談アシスタント」です。
 この面談は匿名で行われ、社員が安心して本音を話せる場であることを大切にしてください。

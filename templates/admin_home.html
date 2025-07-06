@@ -19,19 +19,22 @@
             
             <form id="createEmployeeForm" class="employee-form">
                 <div class="form-group">
-                    <label for="chatbotType">チャットボットの種類</label>
-                    <select id="chatbotType" name="chatbot_type" required>
-                        <option value="">チャットボットの種類を選択してください</option>
-                        <option value="業務">業務について聞くチャットボット</option>
-                        <option value="人間関係">人間関係について聞くチャットボット</option>
-                        <option value="会社の方向性">会社の方向性について聞くチャットボット</option>
-                        <option value="キャリア">キャリアについて聞くチャットボット</option>
+                    <label for="chatbotSelect">チャットボット選択</label>
+                    <select id="chatbotSelect" name="chatbot_id" required>
+                        <option value="">チャットボットを選択してください</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="employeeSelect">従業員選択</label>
+                    <select id="employeeSelect" name="employee_id" required>
+                        <option value="">従業員を選択してください</option>
                     </select>
                 </div>
                 
                 <div class="form-group">
                     <label for="sessionName">セッション名（任意）</label>
-                    <input type="text" id="sessionName" name="session_name" placeholder="例: 営業部向け業務相談">
+                    <input type="text" id="sessionName" name="session_name" placeholder="例: 田中さん向け業務相談">
                 </div>
                 
                 <button type="submit" class="btn btn-primary">専用URL生成</button>
@@ -81,6 +84,63 @@ document.addEventListener('DOMContentLoaded', function() {
     const urlResult = document.getElementById('urlResult');
     const generatedUrl = document.getElementById('generatedUrl');
     const copyBtn = document.getElementById('copyUrl');
+    const chatbotSelect = document.getElementById('chatbotSelect');
+    const employeeSelect = document.getElementById('employeeSelect');
+    
+    async function loadChatbots() {
+        try {
+            const [defaultResponse, customResponse] = await Promise.all([
+                fetch('/api/default-chatbots'),
+                fetch('/api/chatbots')
+            ]);
+            
+            const defaultChatbots = await defaultResponse.json();
+            const customChatbots = await customResponse.json();
+            
+            chatbotSelect.innerHTML = '<option value="">チャットボットを選択してください</option>';
+            
+            defaultChatbots.forEach(chatbot => {
+                const option = document.createElement('option');
+                option.value = `default:${chatbot.type}`;
+                option.textContent = chatbot.name;
+                chatbotSelect.appendChild(option);
+            });
+            
+            if (customChatbots.length > 0) {
+                const separator = document.createElement('option');
+                separator.disabled = true;
+                separator.textContent = '--- カスタムチャットボット ---';
+                chatbotSelect.appendChild(separator);
+                
+                customChatbots.forEach(chatbot => {
+                    const option = document.createElement('option');
+                    option.value = `custom:${chatbot.id}`;
+                    option.textContent = chatbot.name;
+                    chatbotSelect.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('チャットボットの読み込みに失敗しました:', error);
+        }
+    }
+    
+    async function loadEmployees() {
+        try {
+            const response = await fetch('/api/employee-profiles');
+            const employees = await response.json();
+            
+            employeeSelect.innerHTML = '<option value="">従業員を選択してください</option>';
+            
+            employees.forEach(employee => {
+                const option = document.createElement('option');
+                option.value = employee.id;
+                option.textContent = `${employee.name} (${employee.department})`;
+                employeeSelect.appendChild(option);
+            });
+        } catch (error) {
+            console.error('従業員データの読み込みに失敗しました:', error);
+        }
+    }
     
     // URL生成フォーム送信
     form.addEventListener('submit', async function(e) {
@@ -88,7 +148,8 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const formData = new FormData(form);
         const data = {
-            chatbot_type: formData.get('chatbot_type'),
+            chatbot_id: formData.get('chatbot_id'),
+            employee_id: formData.get('employee_id'),
             session_name: formData.get('session_name')
         };
         
@@ -167,6 +228,8 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('refreshData').addEventListener('click', updateStats);
     
     // 初期データ読み込み
+    loadChatbots();
+    loadEmployees();
     updateStats();
 });
 </script>

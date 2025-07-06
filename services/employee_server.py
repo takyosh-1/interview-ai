@@ -7,13 +7,14 @@ from flask import Flask, render_template, request, Response, stream_with_context
 from werkzeug.serving import make_server
 
 from config.settings import client, global_model, running_servers, employee_data
-from models.data_manager import load_shared_feedback_data, save_shared_feedback_data, load_conversation_data, save_conversation_data
+from models.data_manager import load_shared_feedback_data, save_shared_feedback_data, load_conversation_data, save_conversation_data, load_custom_chatbot_data
 from services.ai_service import generate_summary_with_ai, get_chatbot_system_prompt
 
 logger = logging.getLogger(__name__)
 
 def create_employee_app(session_id, session_info):
     chatbot_type = session_info.get('chatbot_type', '業務')
+    chatbot_id = session_info.get('chatbot_id', '')
     session_name = session_info.get('session_name', f"{chatbot_type}チャットボット")
     
     logger.info(f"Creating chatbot app for {chatbot_type} - ID: {session_id}")
@@ -22,10 +23,18 @@ def create_employee_app(session_id, session_info):
     
     @employee_app.route("/")
     def employee_home():
+        initial_message = None
+        if chatbot_id and chatbot_id.startswith("custom:"):
+            custom_id = chatbot_id.replace("custom:", "")
+            custom_chatbots = load_custom_chatbot_data()
+            if custom_id in custom_chatbots:
+                initial_message = custom_chatbots[custom_id]['initial_message']
+        
         return render_template("employee_chat.html", 
                              chatbot_type=chatbot_type,
                              session_name=session_name,
-                             session_id=session_id)
+                             session_id=session_id,
+                             initial_message=initial_message)
     
     @employee_app.route("/chat", methods=["POST"])
     def employee_chat():
@@ -63,7 +72,7 @@ def create_employee_app(session_id, session_info):
             'ai_response': ''
         }
         
-        system_prompt = get_chatbot_system_prompt(chatbot_type)
+        system_prompt = get_chatbot_system_prompt(chatbot_type, chatbot_id)
 
         def stream():
             try:
