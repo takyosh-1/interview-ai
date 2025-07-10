@@ -30,12 +30,14 @@ if __name__ == "__main__":
     else:
         logger.warning("デモモードで起動中（OpenAI APIなし）")
     
-    logger.info("管理者ダッシュボード: http://localhost:5000")
+    import os
+    port = int(os.environ.get('PORT', 5000))
+    logger.info(f"管理者ダッシュボード: http://localhost:{port}")
     logger.info("従業員専用URLは管理者ダッシュボードから生成してください")
     
     try:
-        logger.info("Starting Flask admin application on port 5000")
-        admin_app.run(debug=True, host='0.0.0.0', port=5000)
+        logger.info(f"Starting Flask admin application on port {port}")
+        admin_app.run(debug=True, host='0.0.0.0', port=port)
     except KeyboardInterrupt:
         logger.info("Received keyboard interrupt, cleaning up...")
         cleanup_servers()
