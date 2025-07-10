@@ -1,6 +1,6 @@
 {% extends "employee_layout.html" %}
 
-{% block title %}従業員チャット - 従業員フィードバックシステム{% endblock %}
+{% block title %}従業員チャット - 従業員ヒアリングチャットボット{% endblock %}
 
 {% block extra_style %}
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -8,9 +8,6 @@
 
 {% block content %}
 <div class="chat-container">
-    <div class="chat-header">
-        <h1>{{ session_name }}</h1>
-    </div>
     
     <div class="chat-messages" id="chat-messages">
         <div class="message ai-message">
