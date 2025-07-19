@@ -99,13 +99,15 @@ document.addEventListener('DOMContentLoaded', function() {
             
             chatbotSelect.innerHTML = '<option value="">チャットボットを選択してください</option>';
             
+            // Add default chatbots
             defaultChatbots.forEach(chatbot => {
                 const option = document.createElement('option');
                 option.value = `default:${chatbot.type}`;
-                option.textContent = chatbot.name;
+                option.textContent = `${chatbot.name} (デフォルト)`;
                 chatbotSelect.appendChild(option);
             });
             
+            // Add custom chatbots if any exist
             if (customChatbots.length > 0) {
                 const separator = document.createElement('option');
                 separator.disabled = true;

@@ -70,25 +70,37 @@ document.addEventListener('DOMContentLoaded', function() {
     const formTitle = document.getElementById('formTitle');
     
     let currentChatbotId = null;
+    let currentChatbot = null;
     
     async function loadChatbots() {
         try {
-            const response = await fetch('/api/chatbots');
-            const chatbots = await response.json();
+            const [customResponse, defaultResponse] = await Promise.all([
+                fetch('/api/chatbots'),
+                fetch('/api/default-chatbots')
+            ]);
+            
+            const customChatbots = await customResponse.json();
+            const defaultChatbots = await defaultResponse.json();
+            
+            const allChatbots = [
+                ...defaultChatbots.map(bot => ({...bot, is_default: true})),
+                ...customChatbots.map(bot => ({...bot, is_default: false}))
+            ];
             
             chatbotList.innerHTML = '';
             
-            if (chatbots.length === 0) {
+            if (allChatbots.length === 0) {
                 chatbotList.innerHTML = '<div class="list-item"><p>チャットボットがありません</p></div>';
                 return;
             }
             
-            chatbots.forEach(chatbot => {
+            allChatbots.forEach(chatbot => {
                 const item = document.createElement('div');
                 item.className = 'list-item';
                 item.dataset.chatbotId = chatbot.id;
+                const typeLabel = chatbot.is_default ? ' (デフォルト)' : '';
                 item.innerHTML = `
-                    <h4>${chatbot.name}</h4>
+                    <h4>${chatbot.name}${typeLabel}</h4>
                     <p>${chatbot.initial_message.substring(0, 50)}...</p>
                 `;
                 item.addEventListener('click', () => selectChatbot(chatbot));
@@ -107,13 +119,18 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelector(`[data-chatbot-id="${chatbot.id}"]`).classList.add('active');
         
         currentChatbotId = chatbot.id;
+        currentChatbot = chatbot;
         document.getElementById('chatbotId').value = chatbot.id;
         document.getElementById('chatbotName').value = chatbot.name;
         document.getElementById('initialMessage').value = chatbot.initial_message;
         document.getElementById('systemPrompt').value = chatbot.system_prompt;
         
         formTitle.textContent = 'チャットボット編集';
-        deleteBtn.style.display = 'inline-block';
+        if (!chatbot.is_default) {
+            deleteBtn.style.display = 'inline-block';
+        } else {
+            deleteBtn.style.display = 'none';
+        }
         
         showForm();
     }
@@ -128,6 +145,7 @@ document.addEventListener('DOMContentLoaded', function() {
         emptyState.style.display = 'flex';
         form.reset();
         currentChatbotId = null;
+        currentChatbot = null;
         deleteBtn.style.display = 'none';
         
         document.querySelectorAll('.list-item').forEach(item => {
@@ -138,6 +156,7 @@ document.addEventListener('DOMContentLoaded', function() {
     addChatbotBtn.addEventListener('click', function() {
         form.reset();
         currentChatbotId = null;
+        currentChatbot = null;
         formTitle.textContent = '新規チャットボット作成';
         deleteBtn.style.display = 'none';
         showForm();
@@ -158,7 +177,10 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             let response;
             if (currentChatbotId) {
-                response = await fetch(`/api/chatbots/${currentChatbotId}`, {
+                const endpoint = currentChatbot && currentChatbot.is_default 
+                    ? `/api/default-chatbots/${currentChatbotId}`
+                    : `/api/chatbots/${currentChatbotId}`;
+                response = await fetch(endpoint, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
@@ -186,7 +208,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     deleteBtn.addEventListener('click', async function() {
-        if (!currentChatbotId) return;
+        if (!currentChatbotId || (currentChatbot && currentChatbot.is_default)) return;
         
         if (!confirm('このチャットボットを削除しますか？')) return;
         

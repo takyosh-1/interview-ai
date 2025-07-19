@@ -10,6 +10,7 @@ FEEDBACK_DATA_FILE = f"{SHARED_DATA_DIR}/feedback_data.json"
 EMPLOYEE_DATA_FILE = f"{SHARED_DATA_DIR}/employee_data.json"
 CONVERSATION_DATA_FILE = f"{SHARED_DATA_DIR}/conversation_data.json"
 CUSTOM_CHATBOT_DATA_FILE = f"{SHARED_DATA_DIR}/custom_chatbot_data.json"
+DEFAULT_CHATBOT_DATA_FILE = f"{SHARED_DATA_DIR}/default_chatbot_data.json"
 EMPLOYEE_PROFILE_DATA_FILE = f"{SHARED_DATA_DIR}/employee_profile_data.json"
 
 os.makedirs(SHARED_DATA_DIR, exist_ok=True)

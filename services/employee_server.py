@@ -29,6 +29,13 @@ def create_employee_app(session_id, session_info):
             custom_chatbots = load_custom_chatbot_data()
             if custom_id in custom_chatbots:
                 initial_message = custom_chatbots[custom_id]['initial_message']
+        elif chatbot_id and chatbot_id.startswith("default:"):
+            from models.data_manager import load_default_chatbot_data
+            default_type = chatbot_id.replace("default:", "")
+            default_chatbots = load_default_chatbot_data()
+            default_key = f"default_{default_type}"
+            if default_key in default_chatbots:
+                initial_message = default_chatbots[default_key]['initial_message']
         
         return render_template("employee_chat.html", 
                              chatbot_type=chatbot_type,
@@ -72,7 +79,16 @@ def create_employee_app(session_id, session_info):
             'ai_response': ''
         }
         
-        system_prompt = get_chatbot_system_prompt(chatbot_type, chatbot_id)
+        employee_profile = None
+        if session_info.get('employee_profile'):
+            employee_profile = session_info['employee_profile']
+        elif session_info.get('employee_id'):
+            from models.data_manager import load_employee_profile_data
+            profiles = load_employee_profile_data()
+            employee_profile = profiles.get(session_info['employee_id'])
+        
+        logger.info(f"Employee profile for system prompt: {employee_profile is not None}")
+        system_prompt = get_chatbot_system_prompt(chatbot_type, chatbot_id, employee_profile)
 
         def stream():
             try:

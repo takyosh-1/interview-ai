@@ -64,6 +64,7 @@ def create_employee_url():
         'chatbot_id': chatbot_id,
         'chatbot_type': chatbot_type,
         'employee_id': employee_id,
+        'employee_profile': employee_profile,
         'employee_name': employee_profile['name'],
         'session_name': display_name,
         'created_at': datetime.now().isoformat(),
@@ -184,13 +185,29 @@ def employee_registration():
 
 @admin_bp.route("/api/default-chatbots", methods=["GET"])
 def get_default_chatbots():
-    default_chatbots = [
-        {"type": "業務", "name": "業務について聞くチャットボット"},
-        {"type": "人間関係", "name": "人間関係について聞くチャットボット"},
-        {"type": "会社の方向性", "name": "会社の方向性について聞くチャットボット"},
-        {"type": "キャリア", "name": "キャリアについて聞くチャットボット"}
-    ]
-    return jsonify(default_chatbots)
+    from models.data_manager import load_default_chatbot_data
+    default_chatbots = load_default_chatbot_data()
+    return jsonify(list(default_chatbots.values()))
+
+@admin_bp.route("/api/default-chatbots/<chatbot_id>", methods=["PUT"])
+def update_default_chatbot(chatbot_id):
+    from models.data_manager import load_default_chatbot_data, save_default_chatbot_data
+    data = request.get_json()
+    
+    chatbots = load_default_chatbot_data()
+    if chatbot_id not in chatbots:
+        return jsonify({"success": False, "error": "デフォルトチャットボットが見つかりません"}), 404
+    
+    chatbots[chatbot_id].update({
+        'name': data.get('chatbot_name'),
+        'initial_message': data.get('initial_message'),
+        'system_prompt': data.get('system_prompt'),
+        'updated_at': datetime.now().isoformat()
+    })
+    
+    save_default_chatbot_data(chatbots)
+    logger.info(f"Updated default chatbot: {chatbots[chatbot_id]['name']}")
+    return jsonify({"success": True, "chatbot": chatbots[chatbot_id]})
 
 @admin_bp.route("/api/chatbots", methods=["GET"])
 def get_chatbots():
