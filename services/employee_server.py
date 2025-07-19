@@ -97,6 +97,7 @@ def handle_employee_chat(session_id):
     system_prompt = get_chatbot_system_prompt(chatbot_type, chatbot_id, employee_profile)
 
     def stream():
+        logger.info(f"Client connected: {client is not None}")
         try:
             if client is None:
                 logger.info(f"Generating demo response for {chatbot_type} (no AI client available)")
