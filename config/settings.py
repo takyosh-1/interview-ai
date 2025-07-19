@@ -56,11 +56,6 @@ try:
             azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
             api_version="2024-12-01-preview",
         )
-        client = AzureOpenAI(
-            api_key=os.getenv("AZURE_OPENAI_KEY"),
-            azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-            api_version="2024-12-01-preview",
-        )
 
         logger.info("Azure OpenAI client initialized successfully")
     else:
