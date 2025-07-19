@@ -18,14 +18,38 @@ def admin_home():
 @admin_bp.route("/create-employee-url", methods=["POST"])
 def create_employee_url():
     data = request.get_json()
-    chatbot_type = data.get("chatbot_type", "").strip()
+    chatbot_id = data.get("chatbot_id", "").strip()
+    employee_id = data.get("employee_id", "").strip()
     session_name = data.get("session_name", "").strip()
     
-    logger.info(f"Creating chatbot URL for type: {chatbot_type}, session: {session_name}")
+    logger.info(f"Creating chatbot URL for chatbot_id: {chatbot_id}, employee_id: {employee_id}")
     
-    if not chatbot_type:
-        logger.warning(f"Invalid chatbot URL creation request: chatbot_type='{chatbot_type}'")
-        return jsonify({"success": False, "error": "チャットボットの種類を選択してください"})
+    if not chatbot_id or not employee_id:
+        return jsonify({"success": False, "error": "チャットボットと従業員を選択してください"})
+    
+    from models.data_manager import load_employee_profile_data, load_custom_chatbot_data
+    
+    employee_profiles = load_employee_profile_data()
+    if employee_id not in employee_profiles:
+        return jsonify({"success": False, "error": "選択された従業員が見つかりません"})
+    
+    employee_profile = employee_profiles[employee_id]
+    
+    chatbot_type = None
+    chatbot_name = None
+    
+    if chatbot_id.startswith("default:"):
+        chatbot_type = chatbot_id.replace("default:", "")
+        chatbot_name = f"{chatbot_type}チャットボット"
+    elif chatbot_id.startswith("custom:"):
+        custom_id = chatbot_id.replace("custom:", "")
+        custom_chatbots = load_custom_chatbot_data()
+        if custom_id not in custom_chatbots:
+            return jsonify({"success": False, "error": "選択されたチャットボットが見つかりません"})
+        chatbot_name = custom_chatbots[custom_id]['name']
+        chatbot_type = "custom"
+    else:
+        return jsonify({"success": False, "error": "無効なチャットボットIDです"})
     
     session_id = str(uuid.uuid4())
     base_port = 5001
@@ -34,10 +58,14 @@ def create_employee_url():
     while port in [server['port'] for server in running_servers.values()]:
         port += 1
     
-    display_name = session_name if session_name else f"{chatbot_type}チャットボット"
+    display_name = session_name if session_name else f"{employee_profile['name']}さん - {chatbot_name}"
     
     employee_data[session_id] = {
+        'chatbot_id': chatbot_id,
         'chatbot_type': chatbot_type,
+        'employee_id': employee_id,
+        'employee_profile': employee_profile,
+        'employee_name': employee_profile['name'],
         'session_name': display_name,
         'created_at': datetime.now().isoformat(),
         'port': port
@@ -47,7 +75,7 @@ def create_employee_url():
     
     if start_employee_server(session_id, port):
         employee_url = f"http://localhost:{port}"
-        logger.info(f"Successfully created chatbot URL for {chatbot_type}: {employee_url}")
+        logger.info(f"Successfully created chatbot URL for {chatbot_name}: {employee_url}")
         return jsonify({
             "success": True, 
             "employee_url": employee_url,
@@ -56,7 +84,7 @@ def create_employee_url():
             "chatbot_type": chatbot_type
         })
     else:
-        logger.error(f"Failed to start chatbot server for {chatbot_type} on port {port}")
+        logger.error(f"Failed to start chatbot server for {chatbot_name} on port {port}")
         return jsonify({"success": False, "error": "チャットボットサーバーの起動に失敗しました"})
 
 @admin_bp.route("/employees")
@@ -146,3 +174,129 @@ def admin_feedback_detail(feedback_id):
         return jsonify({"error": "フィードバックが見つかりません"}), 404
     logger.info(f"Successfully retrieved feedback detail for ID: {feedback_id}")
     return jsonify(feedback)
+
+@admin_bp.route("/chatbot-management")
+def chatbot_management():
+    return render_template("chatbot_management.html")
+
+@admin_bp.route("/employee-registration")
+def employee_registration():
+    return render_template("employee_registration.html")
+
+@admin_bp.route("/api/default-chatbots", methods=["GET"])
+def get_default_chatbots():
+    from models.data_manager import load_default_chatbot_data
+    default_chatbots = load_default_chatbot_data()
+    return jsonify(list(default_chatbots.values()))
+
+@admin_bp.route("/api/default-chatbots/<chatbot_id>", methods=["PUT"])
+def update_default_chatbot(chatbot_id):
+    from models.data_manager import load_default_chatbot_data, save_default_chatbot_data
+    data = request.get_json()
+    
+    chatbots = load_default_chatbot_data()
+    if chatbot_id not in chatbots:
+        return jsonify({"success": False, "error": "デフォルトチャットボットが見つかりません"}), 404
+    
+    chatbots[chatbot_id].update({
+        'name': data.get('chatbot_name'),
+        'initial_message': data.get('initial_message'),
+        'system_prompt': data.get('system_prompt'),
+        'updated_at': datetime.now().isoformat()
+    })
+    
+    save_default_chatbot_data(chatbots)
+    logger.info(f"Updated default chatbot: {chatbots[chatbot_id]['name']}")
+    return jsonify({"success": True, "chatbot": chatbots[chatbot_id]})
+
+@admin_bp.route("/api/chatbots", methods=["GET"])
+def get_chatbots():
+    from models.data_manager import load_custom_chatbot_data
+    chatbots = load_custom_chatbot_data()
+    return jsonify(list(chatbots.values()))
+
+@admin_bp.route("/api/chatbots", methods=["POST"])
+def create_chatbot():
+    from models.data_manager import load_custom_chatbot_data, save_custom_chatbot_data
+    data = request.get_json()
+    
+    chatbot_id = str(uuid.uuid4())
+    chatbot_data = {
+        'id': chatbot_id,
+        'name': data.get('chatbot_name'),
+        'initial_message': data.get('initial_message'),
+        'system_prompt': data.get('system_prompt'),
+        'created_at': datetime.now().isoformat(),
+        'updated_at': datetime.now().isoformat()
+    }
+    
+    chatbots = load_custom_chatbot_data()
+    chatbots[chatbot_id] = chatbot_data
+    save_custom_chatbot_data(chatbots)
+    
+    logger.info(f"Created custom chatbot: {chatbot_data['name']}")
+    return jsonify({"success": True, "chatbot": chatbot_data})
+
+@admin_bp.route("/api/chatbots/<chatbot_id>", methods=["PUT"])
+def update_chatbot(chatbot_id):
+    from models.data_manager import load_custom_chatbot_data, save_custom_chatbot_data
+    data = request.get_json()
+    
+    chatbots = load_custom_chatbot_data()
+    if chatbot_id not in chatbots:
+        return jsonify({"success": False, "error": "チャットボットが見つかりません"}), 404
+    
+    chatbots[chatbot_id].update({
+        'name': data.get('chatbot_name'),
+        'initial_message': data.get('initial_message'),
+        'system_prompt': data.get('system_prompt'),
+        'updated_at': datetime.now().isoformat()
+    })
+    
+    save_custom_chatbot_data(chatbots)
+    logger.info(f"Updated custom chatbot: {chatbots[chatbot_id]['name']}")
+    return jsonify({"success": True, "chatbot": chatbots[chatbot_id]})
+
+@admin_bp.route("/api/chatbots/<chatbot_id>", methods=["DELETE"])
+def delete_chatbot(chatbot_id):
+    from models.data_manager import load_custom_chatbot_data, save_custom_chatbot_data
+    
+    chatbots = load_custom_chatbot_data()
+    if chatbot_id not in chatbots:
+        return jsonify({"success": False, "error": "チャットボットが見つかりません"}), 404
+    
+    deleted_name = chatbots[chatbot_id]['name']
+    del chatbots[chatbot_id]
+    save_custom_chatbot_data(chatbots)
+    
+    logger.info(f"Deleted custom chatbot: {deleted_name}")
+    return jsonify({"success": True})
+
+@admin_bp.route("/api/employee-profiles", methods=["GET"])
+def get_employee_profiles():
+    from models.data_manager import load_employee_profile_data
+    profiles = load_employee_profile_data()
+    return jsonify(list(profiles.values()))
+
+@admin_bp.route("/api/employee-profiles", methods=["POST"])
+def create_employee_profile():
+    from models.data_manager import load_employee_profile_data, save_employee_profile_data
+    data = request.get_json()
+    
+    employee_id = str(uuid.uuid4())
+    employee_data = {
+        'id': employee_id,
+        'name': data.get('employee_name'),
+        'department': data.get('department'),
+        'age': data.get('age'),
+        'job_description': data.get('job_description'),
+        'recent_concerns': data.get('recent_concerns', ''),
+        'created_at': datetime.now().isoformat()
+    }
+    
+    profiles = load_employee_profile_data()
+    profiles[employee_id] = employee_data
+    save_employee_profile_data(profiles)
+    
+    logger.info(f"Created employee profile: {employee_data['name']}")
+    return jsonify({"success": True, "employee": employee_data})

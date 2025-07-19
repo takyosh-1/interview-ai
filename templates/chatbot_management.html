@@ -1,0 +1,237 @@
+{% extends "layout.html" %}
+
+{% block title %}チャットボット管理 - 従業員ヒアリングチャットボット{% endblock %}
+
+{% block content %}
+<div class="management-container">
+    <div class="management-header">
+        <h1>チャットボット管理</h1>
+        <p>カスタムチャットボットの作成・編集・削除</p>
+    </div>
+    
+    <div class="management-content">
+        <div class="chatbot-list">
+            <div class="list-header">
+                <h3>登録済みチャットボット</h3>
+                <button id="addChatbotBtn" class="btn btn-primary">新規作成</button>
+            </div>
+            <div id="chatbotList" class="list-items">
+            </div>
+        </div>
+        
+        <div class="chatbot-detail">
+            <div id="chatbotForm" class="detail-form" style="display: none;">
+                <h3 id="formTitle">新規チャットボット作成</h3>
+                <form id="chatbotEditForm">
+                    <input type="hidden" id="chatbotId" name="chatbot_id">
+                    
+                    <div class="form-group">
+                        <label for="chatbotName">チャットボット名</label>
+                        <input type="text" id="chatbotName" name="chatbot_name" required 
+                               placeholder="例: 業務質問チャットボット">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="initialMessage">最初に表示するメッセージ</label>
+                        <textarea id="initialMessage" name="initial_message" rows="4" required
+                                  placeholder="チャットボットが最初に表示するメッセージを入力してください"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="systemPrompt">システムプロンプト</label>
+                        <textarea id="systemPrompt" name="system_prompt" rows="8" required
+                                  placeholder="AIの動作を制御するシステムプロンプトを入力してください"></textarea>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">保存</button>
+                        <button type="button" id="cancelBtn" class="btn btn-secondary">キャンセル</button>
+                        <button type="button" id="deleteBtn" class="btn btn-danger" style="display: none;">削除</button>
+                    </div>
+                </form>
+            </div>
+            
+            <div id="emptyState" class="empty-state">
+                <p>左側のリストからチャットボットを選択するか、新規作成ボタンを押してください</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const chatbotList = document.getElementById('chatbotList');
+    const chatbotForm = document.getElementById('chatbotForm');
+    const emptyState = document.getElementById('emptyState');
+    const addChatbotBtn = document.getElementById('addChatbotBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const deleteBtn = document.getElementById('deleteBtn');
+    const form = document.getElementById('chatbotEditForm');
+    const formTitle = document.getElementById('formTitle');
+    
+    let currentChatbotId = null;
+    let currentChatbot = null;
+    
+    async function loadChatbots() {
+        try {
+            const [customResponse, defaultResponse] = await Promise.all([
+                fetch('/api/chatbots'),
+                fetch('/api/default-chatbots')
+            ]);
+            
+            const customChatbots = await customResponse.json();
+            const defaultChatbots = await defaultResponse.json();
+            
+            const allChatbots = [
+                ...defaultChatbots.map(bot => ({...bot, is_default: true})),
+                ...customChatbots.map(bot => ({...bot, is_default: false}))
+            ];
+            
+            chatbotList.innerHTML = '';
+            
+            if (allChatbots.length === 0) {
+                chatbotList.innerHTML = '<div class="list-item"><p>チャットボットがありません</p></div>';
+                return;
+            }
+            
+            allChatbots.forEach(chatbot => {
+                const item = document.createElement('div');
+                item.className = 'list-item';
+                item.dataset.chatbotId = chatbot.id;
+                const typeLabel = chatbot.is_default ? ' (デフォルト)' : '';
+                item.innerHTML = `
+                    <h4>${chatbot.name}${typeLabel}</h4>
+                    <p>${chatbot.initial_message.substring(0, 50)}...</p>
+                `;
+                item.addEventListener('click', () => selectChatbot(chatbot));
+                chatbotList.appendChild(item);
+            });
+        } catch (error) {
+            console.error('チャットボットの読み込みに失敗しました:', error);
+        }
+    }
+    
+    function selectChatbot(chatbot) {
+        document.querySelectorAll('.list-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        
+        document.querySelector(`[data-chatbot-id="${chatbot.id}"]`).classList.add('active');
+        
+        currentChatbotId = chatbot.id;
+        currentChatbot = chatbot;
+        document.getElementById('chatbotId').value = chatbot.id;
+        document.getElementById('chatbotName').value = chatbot.name;
+        document.getElementById('initialMessage').value = chatbot.initial_message;
+        document.getElementById('systemPrompt').value = chatbot.system_prompt;
+        
+        formTitle.textContent = 'チャットボット編集';
+        if (!chatbot.is_default) {
+            deleteBtn.style.display = 'inline-block';
+        } else {
+            deleteBtn.style.display = 'none';
+        }
+        
+        showForm();
+    }
+    
+    function showForm() {
+        chatbotForm.style.display = 'block';
+        emptyState.style.display = 'none';
+    }
+    
+    function hideForm() {
+        chatbotForm.style.display = 'none';
+        emptyState.style.display = 'flex';
+        form.reset();
+        currentChatbotId = null;
+        currentChatbot = null;
+        deleteBtn.style.display = 'none';
+        
+        document.querySelectorAll('.list-item').forEach(item => {
+            item.classList.remove('active');
+        });
+    }
+    
+    addChatbotBtn.addEventListener('click', function() {
+        form.reset();
+        currentChatbotId = null;
+        currentChatbot = null;
+        formTitle.textContent = '新規チャットボット作成';
+        deleteBtn.style.display = 'none';
+        showForm();
+    });
+    
+    cancelBtn.addEventListener('click', hideForm);
+    
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(form);
+        const data = {
+            chatbot_name: formData.get('chatbot_name'),
+            initial_message: formData.get('initial_message'),
+            system_prompt: formData.get('system_prompt')
+        };
+        
+        try {
+            let response;
+            if (currentChatbotId) {
+                const endpoint = currentChatbot && currentChatbot.is_default 
+                    ? `/api/default-chatbots/${currentChatbotId}`
+                    : `/api/chatbots/${currentChatbotId}`;
+                response = await fetch(endpoint, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+            } else {
+                response = await fetch('/api/chatbots', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+            }
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                await loadChatbots();
+                hideForm();
+                alert(currentChatbotId ? 'チャットボットを更新しました' : 'チャットボットを作成しました');
+            } else {
+                alert('エラー: ' + result.error);
+            }
+        } catch (error) {
+            alert('エラーが発生しました: ' + error.message);
+        }
+    });
+    
+    deleteBtn.addEventListener('click', async function() {
+        if (!currentChatbotId || (currentChatbot && currentChatbot.is_default)) return;
+        
+        if (!confirm('このチャットボットを削除しますか？')) return;
+        
+        try {
+            const response = await fetch(`/api/chatbots/${currentChatbotId}`, {
+                method: 'DELETE'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                await loadChatbots();
+                hideForm();
+                alert('チャットボットを削除しました');
+            } else {
+                alert('エラー: ' + result.error);
+            }
+        } catch (error) {
+            alert('エラーが発生しました: ' + error.message);
+        }
+    });
+    
+    loadChatbots();
+});
+</script>
+{% endblock %}

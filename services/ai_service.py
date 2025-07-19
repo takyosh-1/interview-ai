@@ -3,16 +3,52 @@ from config.settings import client, global_model
 
 logger = logging.getLogger(__name__)
 
-def get_chatbot_system_prompt(chatbot_type):
-    logger.info(f"Generating system prompt for chatbot type: {chatbot_type}")
+def get_chatbot_system_prompt(chatbot_type, chatbot_id=None, employee_profile=None):
+    logger.info(f"Generating system prompt for chatbot type: {chatbot_type}, ID: {chatbot_id}")
+    logger.info(f"Employee profile data: {employee_profile is not None}")
     
-    base_prompt = """あなたは、社員の声を聴き、会社の改善に活かすための「AI面談アシスタント」です。
-この面談は匿名で行われ、社員が安心して本音を話せる場であることを大切にしてください。
-共感的でやさしい口調で、話しやすい雰囲気をつくってください。"""
+    base_prompt = """あなたは従業員の声を聞く専門のチャットボットです。従業員が安心して本音を話せるよう、共感的で親身な対応を心がけてください。
+
+すべての会話は機密として扱われ、従業員のプライバシーは完全に保護されます。従業員の気持ちに寄り添い、適切な質問で深く話を聞いてください。"""
+
+    if employee_profile:
+        employee_context = f"""
+
+以下の従業員の方とお話しています。この情報を参考に、その人に適した質問、深堀り、共感を行ってください：
+- 名前: {employee_profile.get('name', '不明')}
+- 所属部署: {employee_profile.get('department', '不明')}
+- 年齢: {employee_profile.get('age', '不明')}歳
+- 業務内容: {employee_profile.get('job_description', '不明')}
+- 最近の困りごと: {employee_profile.get('recent_concerns', '特になし')}"""
+        base_prompt += employee_context
+    
+    if chatbot_id and chatbot_id.startswith("custom:"):
+        custom_id = chatbot_id.replace("custom:", "")
+        from models.data_manager import load_custom_chatbot_data
+        custom_chatbots = load_custom_chatbot_data()
+        if custom_id in custom_chatbots:
+            custom_prompt = custom_chatbots[custom_id]['system_prompt']
+            logger.info(f"Using custom system prompt for chatbot: {custom_chatbots[custom_id]['name']}")
+            return base_prompt + "\n\n" + custom_prompt
+    
+    if chatbot_id and chatbot_id.startswith("default:"):
+        from models.data_manager import load_default_chatbot_data
+        default_type = chatbot_id.replace("default:", "")
+        default_chatbots = load_default_chatbot_data()
+        default_key = f"default_{default_type}"
+        if default_key in default_chatbots:
+            default_prompt = default_chatbots[default_key].get('system_prompt', '')
+            if default_prompt:
+                logger.info(f"Using default system prompt for chatbot: {default_type}")
+                final_prompt = base_prompt + "\n\n" + default_prompt
+                logger.info(f"Generated system prompt with employee context: {final_prompt[:200]}...")
+                return final_prompt
+    
+    fallback_prompt = base_prompt
     
     if chatbot_type == "業務":
-        return f"""{base_prompt}
-        
+        return f"""{fallback_prompt}
+
 あなたは【業務】に関する相談を専門とするアシスタントです。
 以下の点について丁寧に聞いてください：
 • 現在の業務内容や作業量について
@@ -22,8 +58,8 @@ def get_chatbot_system_prompt(chatbot_type):
 • スキルアップや研修のニーズ"""
         
     elif chatbot_type == "人間関係":
-        return f"""{base_prompt}
-        
+        return f"""{fallback_prompt}
+
 あなたは【人間関係】に関する相談を専門とするアシスタントです。
 以下の点について丁寧に聞いてください：
 • 同僚や上司との関係性
@@ -32,20 +68,9 @@ def get_chatbot_system_prompt(chatbot_type):
 • ハラスメントや不適切な行動の有無
 • チームワーク改善のアイデア"""
         
-    elif chatbot_type == "会社の方向性":
-        return f"""{base_prompt}
-        
-あなたは【会社の方向性】に関する相談を専門とするアシスタントです。
-以下の点について丁寧に聞いてください：
-• 会社の戦略や方針への理解度
-• 組織変更や合併への感想
-• 会社の将来性への不安や期待
-• 経営陣への要望や提案
-• 企業文化や価値観について"""
-        
     elif chatbot_type == "キャリア":
-        return f"""{base_prompt}
-        
+        return f"""{fallback_prompt}
+
 あなたは【キャリア】に関する相談を専門とするアシスタントです。
 以下の点について丁寧に聞いてください：
 • 現在の職位や役割への満足度
@@ -56,7 +81,7 @@ def get_chatbot_system_prompt(chatbot_type):
     
     else:
         logger.warning(f"Unknown chatbot type: {chatbot_type}, using default prompt")
-        return base_prompt
+        return fallback_prompt
 
 def generate_summary_with_ai(feedback_list):
     logger.info(f"Generating AI summary for {len(feedback_list)} feedback entries")
