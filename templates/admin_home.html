@@ -174,10 +174,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 urlResult.style.display = 'block';
                 
                 // Show port information
-                const portInfo = document.createElement('p');
-                portInfo.className = 'port-info';
-                portInfo.innerHTML = `<strong>専用ポート番号:</strong> ${result.port}`;
-                urlResult.appendChild(portInfo);
+                const tokenInfo = document.createElement('p');
+                tokenInfo.className = 'token-info';
+                tokenInfo.innerHTML = `<strong>セッショントークン:</strong> ${result.session_token}`;
+                urlResult.appendChild(tokenInfo);
                 
                 form.reset();
                 updateStats();

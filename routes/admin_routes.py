@@ -3,9 +3,9 @@ import logging
 from datetime import datetime
 from flask import Blueprint, render_template, request, jsonify
 
-from config.settings import employee_data, running_servers
+from config.settings import employee_data, running_servers, generate_random_string, session_url_mapping
 from models.data_manager import load_shared_feedback_data, load_shared_employee_data, save_shared_employee_data
-from services.employee_server import start_employee_server
+from services.employee_server import create_employee_session
 from services.ai_service import generate_summary_with_ai
 
 logger = logging.getLogger(__name__)
@@ -52,11 +52,11 @@ def create_employee_url():
         return jsonify({"success": False, "error": "無効なチャットボットIDです"})
     
     session_id = str(uuid.uuid4())
-    base_port = 5001
-    port = base_port
     
-    while port in [server['port'] for server in running_servers.values()]:
-        port += 1
+    session_token = generate_random_string(6)
+    
+    while session_token in session_url_mapping:
+        session_token = generate_random_string(6)
     
     display_name = session_name if session_name else f"{employee_profile['name']}さん - {chatbot_name}"
     
@@ -68,24 +68,26 @@ def create_employee_url():
         'employee_name': employee_profile['name'],
         'session_name': display_name,
         'created_at': datetime.now().isoformat(),
-        'port': port
+        'session_token': session_token
     }
     
     save_shared_employee_data(employee_data)
     
-    if start_employee_server(session_id, port):
-        employee_url = f"http://localhost:{port}"
+    if create_employee_session(session_id, session_token):
+        base_url = request.host_url.rstrip('/')
+        employee_url = f"{base_url}/chat/{session_token}"
+        
         logger.info(f"Successfully created chatbot URL for {chatbot_name}: {employee_url}")
         return jsonify({
             "success": True, 
             "employee_url": employee_url,
-            "port": port,
+            "session_token": session_token,
             "session_id": session_id,
             "chatbot_type": chatbot_type
         })
     else:
-        logger.error(f"Failed to start chatbot server for {chatbot_name} on port {port}")
-        return jsonify({"success": False, "error": "チャットボットサーバーの起動に失敗しました"})
+        logger.error(f"Failed to create chatbot session for {chatbot_name}")
+        return jsonify({"success": False, "error": "チャットボットセッションの作成に失敗しました"})
 
 @admin_bp.route("/employees")
 def list_employees():
@@ -94,15 +96,16 @@ def list_employees():
     
     sessions = []
     for session_id, session_data in current_employee_data.items():
-        server_info = running_servers.get(session_id, {})
+        base_url = request.host_url.rstrip('/')
+        session_token = session_data.get('session_token', '')
         sessions.append({
             'id': session_id,
             'chatbot_type': session_data.get('chatbot_type', '不明'),
             'session_name': session_data.get('session_name', '不明'),
             'created_at': session_data['created_at'],
-            'port': session_data.get('port'),
-            'url': server_info.get('url'),
-            'status': 'running' if session_id in running_servers else 'stopped'
+            'session_token': session_token,
+            'url': f"{base_url}/chat/{session_token}" if session_token else None,
+            'status': 'active' if session_token in session_url_mapping else 'inactive'
         })
     return jsonify(sessions)
 
