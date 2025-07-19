@@ -1,8 +1,8 @@
 import signal
 import logging
-from flask import Flask
+from flask import Flask, render_template, request, Response, stream_with_context, jsonify
 
-from config.settings import employee_data, feedback_data, client, global_model
+from config.settings import employee_data, feedback_data, client, global_model, session_url_mapping
 from models.data_manager import load_shared_feedback_data, load_shared_employee_data
 from routes.admin_routes import admin_bp
 from utils.server_utils import cleanup_servers, signal_handler
@@ -14,10 +14,37 @@ admin_app.secret_key = 'admin-secret-key-change-in-production'
 
 admin_app.register_blueprint(admin_bp)
 
+@admin_app.route('/chat/<session_token>')
+def employee_chat_home(session_token):
+    from services.employee_server import handle_employee_home
+    
+    if session_token not in session_url_mapping:
+        return "Invalid or expired chatbot URL", 404
+    
+    session_id = session_url_mapping[session_token]
+    return handle_employee_home(session_id)
+
+@admin_app.route('/chat/<session_token>/chat', methods=['POST'])
+def employee_chat_api(session_token):
+    from services.employee_server import handle_employee_chat
+    
+    if session_token not in session_url_mapping:
+        return jsonify({"error": "Invalid or expired chatbot URL"}), 404
+    
+    session_id = session_url_mapping[session_token]
+    return handle_employee_chat(session_id)
+
 logger.info("Loading initial data...")
 feedback_data.extend(load_shared_feedback_data())
 employee_data.update(load_shared_employee_data())
+
+for session_id, session_data in employee_data.items():
+    session_token = session_data.get('session_token')
+    if session_token:
+        session_url_mapping[session_token] = session_id
+
 logger.info(f"Loaded {len(feedback_data)} feedback entries and {len(employee_data)} employee records")
+logger.info(f"Restored {len(session_url_mapping)} session URL mappings")
 
 
 if __name__ == "__main__":

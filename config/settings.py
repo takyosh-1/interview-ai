@@ -1,5 +1,7 @@
 import os
 import logging
+import string
+import random
 from dotenv import load_dotenv
 from openai import AzureOpenAI
 
@@ -14,6 +16,13 @@ DEFAULT_CHATBOT_DATA_FILE = f"{SHARED_DATA_DIR}/default_chatbot_data.json"
 EMPLOYEE_PROFILE_DATA_FILE = f"{SHARED_DATA_DIR}/employee_profile_data.json"
 
 os.makedirs(SHARED_DATA_DIR, exist_ok=True)
+
+def generate_random_string(length=6):
+    """Generate a random string of specified length using lowercase letters and digits"""
+    characters = string.ascii_lowercase + string.digits
+    return ''.join(random.choices(characters, k=length))
+
+session_url_mapping = {}
 
 logging.basicConfig(
     level=logging.INFO,
