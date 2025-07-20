@@ -11,7 +11,8 @@ RUN mkdir -p /tmp/interview_ai_shared
 
 EXPOSE 5000
 
-ENV FLASK_APP=app.py
+# 環境変数（任意、FLASK_* はgunicornでは実質使われない）
 ENV FLASK_ENV=production
 
-CMD ["python", "app.py"]
+# ✅ gunicorn で Flask アプリを起動（app.py 内の admin_app を使用）
+CMD ["gunicorn", "app:admin_app", "--bind", "0.0.0.0:5000"]

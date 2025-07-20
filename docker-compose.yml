@@ -2,7 +2,7 @@ services:
   interview-ai:
     build: .
     ports:
-      - "5003:5000"
+      - "5000:5000"
     volumes:
       - shared_data:/tmp/interview_ai_shared
     environment:
