@@ -2,6 +2,7 @@ import os
 import logging
 import string
 import random
+import traceback
 from dotenv import load_dotenv
 from openai import AzureOpenAI
 
@@ -18,7 +19,6 @@ EMPLOYEE_PROFILE_DATA_FILE = f"{SHARED_DATA_DIR}/employee_profile_data.json"
 os.makedirs(SHARED_DATA_DIR, exist_ok=True)
 
 def generate_random_string(length=6):
-    """Generate a random string of specified length using lowercase letters and digits"""
     characters = string.ascii_lowercase + string.digits
     return ''.join(random.choices(characters, k=length))
 
@@ -42,24 +42,45 @@ employee_access_tokens = {}
 
 logger.info(f"Shared data directory initialized: {SHARED_DATA_DIR}")
 
+import openai
+logger.info(f"OpenAI SDK version: {openai.__version__}")
+
+
 global_model = "gpt-4o"
 client = None
 
-logger.info(f"AZURE openai endpoint: {os.getenv('AZURE_OPENAI_ENDPOINT')}")
-logger.info(f"AZURE openai key: {os.getenv('AZURE_OPENAI_KEY')}")
+# Log Azure OpenAI environment variables
+endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+key = os.getenv("AZURE_OPENAI_KEY")
+logger.info(f"AZURE openai endpoint: {endpoint}")
+logger.info(f"AZURE openai key: {key}")
+
+# Log module info for AzureOpenAI (to detect wrong import)
+logger.info(f"AzureOpenAI class from module: {AzureOpenAI.__module__}")
+
+# Log proxy-related env vars
+for var in ["HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy"]:
+    if os.getenv(var):
+        logger.warning(f"Environment variable {var} is set: {os.getenv(var)}")
 
 try:
-    if os.getenv("AZURE_OPENAI_KEY") and os.getenv("AZURE_OPENAI_ENDPOINT"):
+    if key and endpoint:
         logger.info("Initializing Azure OpenAI client...")
-        client = AzureOpenAI(
-            api_key=os.getenv("AZURE_OPENAI_KEY"),
-            azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-            api_version="2024-12-01-preview",
-        )
+
+        # Log input arguments
+        init_kwargs = {
+            "api_key": key,
+            "azure_endpoint": endpoint,
+            "api_version": "2024-12-01-preview"
+        }
+        logger.info(f"Client init kwargs: {init_kwargs}")
+
+        client = AzureOpenAI(**init_kwargs)
 
         logger.info("Azure OpenAI client initialized successfully")
     else:
         logger.warning("Azure OpenAI credentials not found. Running in demo mode.")
 except Exception as e:
-    logger.error(f"Failed to initialize Azure OpenAI client: {e}")
+    logger.error("Failed to initialize Azure OpenAI client:")
+    logger.error(traceback.format_exc())
     logger.warning("Running in demo mode without AI functionality.")
